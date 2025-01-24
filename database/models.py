@@ -2,8 +2,12 @@ from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Uniqu
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+import os
+from dotenv import load_dotenv
 
-engine = create_async_engine("postgresql+asyncpg://postgres:mysecretpassword@localhost:5400/twitter")
+load_dotenv()
+
+engine = create_async_engine(os.getenv("DATABASE_URL_TEST"))
 
 Base = declarative_base()
 async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)

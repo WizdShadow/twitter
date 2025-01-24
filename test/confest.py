@@ -9,13 +9,13 @@ import random
 from starlette.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from main import app
+import os
+from dotenv import load_dotenv
 
-# Используем асинхронный движок для PostgreSQL
-DATABASE_URL = "postgresql://postgres:mysecretpassword@localhost:5400/twitter"
+engines = create_engine(os.getenv("DATABASE_URL_TEST_SYNC"))
+async_session = sessionmaker(engines)
 
-# Создаем асинхронный движок и сессию
-engine = create_engine(DATABASE_URL)
-async_session = sessionmaker(engine)
+load_dotenv()
 
 @pytest.fixture
 def client():
@@ -25,9 +25,11 @@ def client():
         
 @pytest.fixture(scope="session")
 def init_models():
+    engine = create_engine(os.getenv("DATABASE_URL_TEST_SYNC"))
+    session = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
     
-    yield
+    yield session
     
     Base.metadata.drop_all(engine)
 
