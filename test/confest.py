@@ -1,54 +1,64 @@
+import os
+import random
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import and_, select, create_engine
+from sqlalchemy import select, and_
 from database.models import Base, User, Followers, Following
 import pytest
 import pytest_asyncio
 from faker import Faker
-import random
-from starlette.testclient import TestClient
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient, ASGITransport
 from main import app
-import os
-from dotenv import load_dotenv
+import asyncio
 
-engines = create_engine(os.getenv("DATABASE_URL_TEST_SYNC"))
-async_session = sessionmaker(engines)
 
 load_dotenv()
 
-@pytest.fixture
-def client():
-    with TestClient(app) as c:
-        yield c
-        
-        
-@pytest.fixture(scope="session")
-def init_models():
-    engine = create_engine(os.getenv("DATABASE_URL_TEST_SYNC"))
-    session = sessionmaker(bind=engine)
-    Base.metadata.create_all(engine)
-    
-    yield session
-    
-    Base.metadata.drop_all(engine)
 
-@pytest.fixture(scope="session")
-def data_test():
+async_engine = create_async_engine(os.getenv("DATABASE_URL_TEST_SYNC"))
+AsyncSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+
+@pytest_asyncio.fixture(scope="session")
+def event_loop():
+    loop = asyncio.new_event_loop()  
+    asyncio.set_event_loop(loop)     
+    yield loop
+    loop.close() 
+    
+    
+# Фикстура для клиента
+@pytest_asyncio.fixture(scope="session")
+async def client(event_loop):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        yield c
+
+# Фикстура для инициализации моделей
+@pytest_asyncio.fixture(scope="session")
+async def init_models():
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+# Фикстура для тестовых данных
+@pytest_asyncio.fixture(scope="session")
+async def data_test():
     faker = Faker("en_US")
-    with async_session() as session:
+    async with AsyncSessionLocal() as session:
         # Добавляем пользователей
         for _ in range(10):
             user = User(name=faker.first_name())
             session.add(user)
-        session.commit()
+        await session.commit()
 
         test = User(name="test")
         session.add(test)
-        session.commit()
+        await session.commit()
 
         # Получаем список всех пользователей
-        result = session.execute(select(User))
+        result = await session.execute(select(User))
         users = result.scalars().all()
         user_ids = [user.id for user in users]
 
@@ -57,7 +67,7 @@ def data_test():
             while True:
                 follower_id = random.choice(user_ids)
                 following_id = random.choice(user_ids)
-                dubl = session.execute(
+                dubl = await session.execute(
                     select(Followers).where(
                         and_(Followers.user_id == following_id, Followers.follower_id == follower_id)
                     )
@@ -74,12 +84,12 @@ def data_test():
             following = Following(user_id=follower_id, following_id=following_id)
             session.add(following)
 
-        session.commit()
+        await session.commit()
 
         yield  # Тестовые данные готовы
 
         # Очистка данных после теста
-        session.execute(Followers.__table__.delete())
-        session.execute(Following.__table__.delete())
-        session.execute(User.__table__.delete())
-        session.commit()
+        await session.execute(Followers.__table__.delete())
+        await session.execute(Following.__table__.delete())
+        await session.execute(User.__table__.delete())
+        await session.commit()
