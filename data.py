@@ -1,20 +1,13 @@
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from faker import Faker
-import random
-import asyncio
-from database.models import User, Followers, Following, init_models, Base, engine
-import time
+from PIL import Image
 
-async def init_models():
-    async with engine.begin() as conn:
-        # Сначала удаляем таблицы, если они существуют
-        await conn.run_sync(Base.metadata.drop_all)
-    print("модели созданы")
+# Путь к изображению
+image_path = 'rengoku.jpg'
 
-async def main():
-    await init_models()
-    # Дополнительный код для работы с базой данных
+# Открываем изображение
+with Image.open(image_path) as img:
+    # Преобразуем изображение в байты
+    with open(image_path, 'rb') as f:
+        binary_data = f.read()
 
-# Запуск асинхронного event loop
-asyncio.run(main())
+# Теперь binary_data содержит изображение в бинарном формате
+print(binary_data)  #

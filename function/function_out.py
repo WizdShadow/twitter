@@ -59,18 +59,18 @@ async def get(example_data):
     return serialized_tweets
 
 
-async def post_like(session, id):
-    us = 7
+async def post_like(session, id, id_user):
+    
     queryy = select(Likes).where(Tweets.id == id)
     resultt = await session.execute(queryy)    
     like = resultt.scalars().first()
     if not like:
-        likes = Likes(user_id=us, tweet_id=id)
+        likes = Likes(user_id=id_user, tweet_id=id)
         session.add(likes)
         await session.commit()
         return True
     else:
-        likes = Likes(user_id=us, tweet_id=id)
+        likes = Likes(user_id=id_user, tweet_id=id)
         session.add(likes)
         await session.commit()
         return True
@@ -78,6 +78,14 @@ async def post_like(session, id):
 #~ Проверка юзеров наличие
 async def get_user(session, api_key):
     query = select(User).where(User.name == api_key)
+    result = await session.execute(query)
+    user = result.scalars().first()
+    
+    return user
+
+#~ Извлечение имя юзера
+async def get_name(session, api_key):
+    query = select(User.id).where(User.name == api_key)
     result = await session.execute(query)
     user = result.scalars().first()
     

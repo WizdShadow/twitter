@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import and_
-from function.function_out import get_follower_following, get, post_like, get_user
+from function.function_out import get_follower_following, get, post_like, get_user, get_name
 from contextlib import asynccontextmanager
 from typing import List
 from shema import Tweetss, MediasOut, Status, InfoUser, Tweetsall, Tweetcreate
@@ -88,11 +88,10 @@ async def user_me(id: int, session = Depends(get_session)):
     
 #~ Подписка на пользователя
 @app.post("/api/users/{id}/follow")
-async def user_follow(id: int, session = Depends(get_session)):
-    user = 5
-    user_following = 7
-
-    query = select(Following).where(and_(Following.user_id == user, Following.following_id == user_following))
+async def user_follow(id: int, request: Request, session = Depends(get_session)):
+    key = request.headers.get("Api-Key")
+    id_user = await get_name(session, key)
+    query = select(Following).where(and_(Following.user_id == id_user, Following.following_id == id))
     result = await session.execute(query)
     following = result.scalars().first()
 
@@ -100,8 +99,8 @@ async def user_follow(id: int, session = Depends(get_session)):
         return Status(result = False)
 
     else:
-        add = Following(user_id=user, following_id=user_following)
-        await session.add(add)
+        add = Following(user_id=id_user, following_id=id)
+        session.add(add)
         await session.commit()
         return Status(result = True)
         
@@ -138,8 +137,9 @@ async def create_medias(file_body, session, file_name):
 
 #~ Cоздать твит
 @app.post("/api/tweets")
-async def create_tweet(twet: Tweetss, session = Depends(get_session)):
-    
+async def create_tweet(twet: Tweetss, request: Request, session = Depends(get_session)):
+    key = request.headers.get("Api-Key")
+    id_user = await get_name(session, key)
     query = select(Medias).where(Medias.id.in_(twet.attachments))
     result = await session.execute(query)
     attachments = result.scalars().all()
@@ -148,7 +148,7 @@ async def create_tweet(twet: Tweetss, session = Depends(get_session)):
         if attachment.tweet_id is not None:
             return Status(result = False)
     
-    twets = (Tweets(content=twet.content, author_id=twet.id))
+    twets = (Tweets(content=twet.content, author_id=id_user))
     
     session.add(twets)
     await session.commit()
@@ -161,13 +161,14 @@ async def create_tweet(twet: Tweetss, session = Depends(get_session)):
   
 #~ Удалить твит    
 @app.delete("/api/tweets/{id}")
-async def delete_tweets(id: int, session = Depends(get_session)):
-    us = 5
+async def delete_tweets(id: int, request: Request, session = Depends(get_session)):
+    key = request.headers.get("Api-Key")
+    id_user = await get_name(session, key)
     query = select(Tweets).where(Tweets.id == id)
     result = await session.execute(query)    
     tweet = result.scalars().first()
     
-    if tweet.author_id == us:
+    if tweet.author_id ==id_user:
         await session.delete(tweet)
         await session.commit()
         return Status(result = True)
@@ -176,13 +177,14 @@ async def delete_tweets(id: int, session = Depends(get_session)):
     
 #~ Поставить лайк
 @app.post("/api/tweets/{id}/like")
-async def like_tweets(id: int, session = Depends(get_session)):
-    us = 7
+async def like_tweets(id: int, request: Request, session = Depends(get_session)):
+    key = request.headers.get("Api-Key")
+    id_user = await get_name(session, key)
     query = select(Tweets).where(Tweets.id == id)
     result = await session.execute(query)    
     tweet = result.scalars().first()
     if tweet:
-        returnn = await post_like(session, id)
+        returnn = await post_like(session, id, id_user)
         return Status(result = returnn)
         
     else:
@@ -191,9 +193,10 @@ async def like_tweets(id: int, session = Depends(get_session)):
     
 #~ Удалить лайк
 @app.delete("/api/tweets/{id}/like")
-async def delete_like(id: int, session = Depends(get_session)):
-    us = 5
-    query = select(Likes).where(and_(Likes.user_id == us, Likes.tweet_id == id))
+async def delete_like(id: int, request: Request, session = Depends(get_session)):
+    key = request.headers.get("Api-Key")
+    id_user = await get_name(session, key)
+    query = select(Likes).where(and_(Likes.user_id == id_user, Likes.tweet_id == id))
     result = await session.execute(query)    
     like = result.scalars().first()
     if like:

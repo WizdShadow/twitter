@@ -4,13 +4,16 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, and_
-from database.models import Base, User, Followers, Following
+from database.models import Base, User, Followers, Following, Medias, Likes, Tweets
 import pytest
 import pytest_asyncio
 from faker import Faker
 from httpx import AsyncClient, ASGITransport
 from main import app
 import asyncio
+from PIL import Image
+import aiofiles
+from func import get_id
 
 
 load_dotenv()
@@ -32,6 +35,11 @@ def event_loop():
 async def client(event_loop):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
+        
+@pytest_asyncio.fixture(scope="session")
+async def session():
+    async with AsyncSessionLocal() as session:
+        yield session
 
 # Фикстура для инициализации моделей
 @pytest_asyncio.fixture(scope="session")
@@ -47,16 +55,16 @@ async def init_models():
 async def data_test():
     faker = Faker("en_US")
     async with AsyncSessionLocal() as session:
+        test = User(name="test")
+        session.add(test)
+        await session.commit()
         # Добавляем пользователей
         for _ in range(10):
             user = User(name=faker.first_name())
             session.add(user)
         await session.commit()
 
-        test = User(name="test")
-        session.add(test)
-        await session.commit()
-
+        
         # Получаем список всех пользователей
         result = await session.execute(select(User))
         users = result.scalars().all()
@@ -85,11 +93,27 @@ async def data_test():
             session.add(following)
 
         await session.commit()
-
+        
+        async with aiofiles.open("test/rengoku.jpg", mode='rb') as f:
+            binary_data = await f.read()
+                
+        for _ in range(5):
+            image = Medias(file_body=binary_data, file_name="test")
+            session.add(image)
+        await session.commit()
+        
+        
+        twet_id = Tweets(content="test", author_id=1)
+        session.add(twet_id)
+        await session.commit()
+        like = Likes(user_id=1, tweet_id=1)
+        images = await get_id([2,3], session)
+        for i in images:
+            i.tweet_id = twet_id.id
+        session.add(twet_id)
+        session.add(like)
+        await session.commit()
+        
+        
         yield  # Тестовые данные готовы
 
-        # Очистка данных после теста
-        await session.execute(Followers.__table__.delete())
-        await session.execute(Following.__table__.delete())
-        await session.execute(User.__table__.delete())
-        await session.commit()
