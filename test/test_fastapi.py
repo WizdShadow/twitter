@@ -1,5 +1,6 @@
 #test_fastapi.py
 from starlette.testclient import TestClient
+from database.models import Base, User, Followers, Following
 from dotenv import load_dotenv
 from httpx import AsyncClient
 from main import app
@@ -82,3 +83,28 @@ async def test_delete_tweets(init_models, data_test, client, event_loop):
     assert response.status_code == 200
     assert response.json()["result"] == True
     
+#~ Тест на загрузку медиа
+@pytest.mark.asyncio
+async def test_upload(init_models, data_test, client, event_loop):
+    headers = {"Api-Key": "test"}
+    with open("test/rengoku.jpg", "rb") as f:
+        
+        file ={"file": ("rengoku.jpg", f, "image/jpeg")}
+        response = await client.post("/api/medias", headers = headers, files= file)
+    assert response.status_code == 200
+    
+#~ Тест на получение медиа
+@pytest.mark.asyncio
+async def test_get_media(init_models, data_test, client, event_loop):
+    response = await client.get("/api/medeia/1")
+    assert response.status_code == 200
+    
+    
+@pytest.mark.asyncio
+async def test_get_medi(init_models, data_test, client,session, event_loop):
+    new_user = User(
+        name="test",
+    )
+    async with session.begin():
+        await session.commit()
+    print(new_user.id)

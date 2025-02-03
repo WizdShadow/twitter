@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from typing import List
 from shema import Tweetss, MediasOut, Status, InfoUser, Tweetsall, Tweetcreate
 import uvicorn
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,7 +20,7 @@ async def lifespan(app: FastAPI):
     yield
     print("Shutting down...")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan)    
 
 
 class GoodOut(BaseModel):
@@ -27,14 +28,14 @@ class GoodOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True) 
         
-    
-# app.mount("/static", StaticFiles(directory="static"), name="static")
-# templates = Jinja2Templates(directory="templates")
 
-# @app.get("/")
-# async def root(request: Request):
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/")
+async def root(request: Request):
     
-#     return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.middleware("http")
 async def check_user_middleware(request: Request, call_next):
@@ -220,9 +221,9 @@ async def get_all_tweets(session = Depends(get_session)):
 
 #~ Получение картинки
 @app.get("/api/medeia/{id}")
-def get_media(id: int, session = Depends(get_session)):
+async def get_media(id: int, session = Depends(get_session)):
     query = select(Medias).where(Medias.id == id)
-    result = session.execute(query)
+    result = await session.execute(query)
     media = result.scalars().first()
     return Response(content=media.file_body, media_type=media.file_name)
 
