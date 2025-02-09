@@ -1,0 +1,59 @@
+# Версия файла docker-compose
+version: '3'
+
+# Определение сервисов
+services:
+  sleeper:
+    image: alpine
+    command: ["sh", "-c", "sleep 10"]
+  # Сервис для нашего приложения
+  app:
+    # Путь к контексту для сборки образа (в данном случае текущая директория)
+    build: .
+    
+    # Команда для запуска приложения внутри контейнера
+    command: uvicorn main:app --reload --workers 1 --host 0.0.0.0 --port 8000
+    
+    # Монтируем текущую директорию в контейнер, чтобы изменения в коде сразу применялись
+    volumes:
+      - .:/app
+      
+    # Отображаем порт 8000 внутри контейнера на порт 8000 на хосте
+    ports:
+      - "8000:8000"
+      
+    # Зависимость от сервиса базы данных
+    depends_on:
+      - db
+      - sleeper
+      
+    # Переменная окружения с URL для подключения к базе данных
+    environment:
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@db:5400/twitter_test
+
+  # Сервис для базы данных PostgreSQL
+  db:
+    # Используем готовый образ PostgreSQL версии 14
+    image: postgres:14
+    
+    # Настраиваем автоматический рестарт контейнера
+    restart: always
+    
+    # Переменные окружения для настройки базы данных
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mysecretpassword
+      - POSTGRES_DB=twitter_test
+
+    # Отображаем порт 5432 внутри контейнера на порт 5400 на хосте
+    ports:
+      - "5400:5432"
+      
+    # Монтируем том для сохранения данных базы данных
+    volumes:
+      - pgdata:/var/lib/postgresql/data/
+
+# Описание томов
+volumes:
+  # Том для хранения данных базы данных
+  pgdata:
