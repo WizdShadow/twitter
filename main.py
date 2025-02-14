@@ -30,6 +30,8 @@ class GoodOut(BaseModel):
         
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/js", StaticFiles(directory="static/js"), name="js")
+app.mount("/css", StaticFiles(directory="static/css"), name="css")
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
@@ -44,7 +46,7 @@ async def check_user_middleware(request: Request, call_next):
     ):
         async with async_session() as session:
             user = await get_user(
-                session=session, api_key=request.headers.get("Api-Key", 'test') 
+                session=session, api_key=request.headers.get("api-key", 'test') 
             )
             if not user:
                 return Response(content="Unauthorized", status_code=401)
@@ -55,7 +57,7 @@ async def check_user_middleware(request: Request, call_next):
 #~ Получение информации о пользователе
 @app.get("/api/users/me")
 async def user_me(request: Request, session = Depends(get_session)):
-    key = request.headers.get("Api-Key")
+    key = request.headers.get("api-key")
     query = select(User).options(
         joinedload(User.followers),
         joinedload(User.following)
@@ -65,9 +67,9 @@ async def user_me(request: Request, session = Depends(get_session)):
     
     user = result.unique().scalars().first()
     
-    followers, followings = await get_follower_following(session, user.followers, user.following)
+    api = await get_follower_following(session, user.followers, user.following, user.id, user.name)
         
-    return InfoUser(id = user.id, name = user.name, follower = followers, following = followings)
+    return InfoUser(result=True, user  = api)
 
 #~ Получение информации о пользователе по id
 @app.get("/api/users/{id}")
@@ -81,16 +83,16 @@ async def user_me(id: int, session = Depends(get_session)):
     result = await session.execute(query)
     
     user = result.unique().scalars().first()
-    
-    followers, followings = await get_follower_following(session, user.followers, user.following)
     if not user:
         return Status(result = False)
-    return InfoUser(id = user.id, name = user.name, follower = followers, following = followings)
+    api = await get_follower_following(session, user.followers, user.following, user.id, user.name)
+        
+    return InfoUser(result=True, user  = api)
     
 #~ Подписка на пользователя
 @app.post("/api/users/{id}/follow")
 async def user_follow(id: int, request: Request, session = Depends(get_session)):
-    key = request.headers.get("Api-Key")
+    key = request.headers.get("api-key")
     id_user = await get_name(session, key)
     query = select(Following).where(and_(Following.user_id == id_user, Following.following_id == id))
     result = await session.execute(query)
@@ -139,9 +141,9 @@ async def create_medias(file_body, session, file_name):
 #~ Cоздать твит
 @app.post("/api/tweets")
 async def create_tweet(twet: Tweetss, request: Request, session = Depends(get_session)):
-    key = request.headers.get("Api-Key")
+    key = request.headers.get("api-key")
     id_user = await get_name(session, key)
-    query = select(Medias).where(Medias.id.in_(twet.attachments))
+    query = select(Medias).where(Medias.id.in_(twet.tweet_media_ids))
     result = await session.execute(query)
     attachments = result.scalars().all()
     
@@ -149,7 +151,7 @@ async def create_tweet(twet: Tweetss, request: Request, session = Depends(get_se
         if attachment.tweet_id is not None:
             return Status(result = False)
     
-    twets = (Tweets(content=twet.content, author_id=id_user))
+    twets = (Tweets(content=twet.tweet_data, author_id=id_user))
     
     session.add(twets)
     await session.commit()
@@ -163,7 +165,7 @@ async def create_tweet(twet: Tweetss, request: Request, session = Depends(get_se
 #~ Удалить твит    
 @app.delete("/api/tweets/{id}")
 async def delete_tweets(id: int, request: Request, session = Depends(get_session)):
-    key = request.headers.get("Api-Key")
+    key = request.headers.get("api-key")
     id_user = await get_name(session, key)
     query = select(Tweets).where(Tweets.id == id)
     result = await session.execute(query)    
@@ -177,9 +179,9 @@ async def delete_tweets(id: int, request: Request, session = Depends(get_session
         return Status(result = False)
     
 #~ Поставить лайк
-@app.post("/api/tweets/{id}/like")
+@app.post("/api/tweets/{id}/likes")
 async def like_tweets(id: int, request: Request, session = Depends(get_session)):
-    key = request.headers.get("Api-Key")
+    key = request.headers.get("api-key")
     id_user = await get_name(session, key)
     query = select(Tweets).where(Tweets.id == id)
     result = await session.execute(query)    
@@ -193,9 +195,9 @@ async def like_tweets(id: int, request: Request, session = Depends(get_session))
     
     
 #~ Удалить лайк
-@app.delete("/api/tweets/{id}/like")
+@app.delete("/api/tweets/{id}/likes")
 async def delete_like(id: int, request: Request, session = Depends(get_session)):
-    key = request.headers.get("Api-Key")
+    key = request.headers.get("api-key")
     id_user = await get_name(session, key)
     query = select(Likes).where(and_(Likes.user_id == id_user, Likes.tweet_id == id))
     result = await session.execute(query)    
@@ -220,7 +222,7 @@ async def get_all_tweets(session = Depends(get_session)):
     return Tweetsall(result = True, tweets = api)
 
 #~ Получение картинки
-@app.get("/api/medeia/{id}")
+@app.get("/api/media/{id}")
 async def get_media(id: int, session = Depends(get_session)):
     query = select(Medias).where(Medias.id == id)
     result = await session.execute(query)

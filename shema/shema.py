@@ -1,6 +1,4 @@
-from database.models import User
 from sqlalchemy.future import select
-import json
 from typing import List, Optional, Dict
 from pydantic import BaseModel
 from database import User, Followers, Following, get_session, Medias, init_models, engine, Tweets, Likes
@@ -30,21 +28,23 @@ class Tweet(BaseModel):
     
     
 class Tweetss(BaseModel):
-    id: int
-    content: str
-    attachments: List[int]
+    tweet_data: str
+    tweet_media_ids: List[int]
     
 class MediasOut(BaseModel):
     media_id: int
     
 class Status(BaseModel):
     result: bool
-    
-class InfoUser(BaseModel):
+class Userss(BaseModel):
     id: int
     name: str
-    follower: List
-    following: List
+    followers: Optional[List]
+    following: Optional[List]    
+
+class InfoUser(BaseModel):
+    result: bool
+    user: Userss
     
 class Tweetsall(BaseModel):
     result: bool
@@ -53,3 +53,4 @@ class Tweetsall(BaseModel):
 class Tweetcreate(BaseModel):
     result: bool
     id: int     
+    

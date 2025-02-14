@@ -5,10 +5,10 @@ from typing import List, Optional, Dict
 from pydantic import BaseModel
 from database import User, Followers, Following, get_session, Medias, init_models, engine, Tweets, Likes
 from sqlalchemy.orm import joinedload, selectinload
-from shema.shema import Tweet
+from shema.shema import Tweet, User, Userss
 import uvicorn
 
-async def get_follower_following(session, a,b):
+async def get_follower_following(session, a, b, id, name):
     
     follower = []
     following = []
@@ -28,7 +28,8 @@ async def get_follower_following(session, a,b):
             print(fols.name)
             following.append({"id": fols.id, "name": fols.name})
             
-    return follower, following
+            
+    return Userss(id = id, name = name, followers = follower, following = following)
 
 async def get(example_data):
     tweets = []
