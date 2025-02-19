@@ -45,7 +45,12 @@
 ├── test_datadb.py            # Тесты базы данных
 └── Итоговый проект «Python Advanced».pdf  # PDF-файл с описанием проекта
 
-Запуск проекта
+Запуск проекта на локальном компьютере
+
+Перед запуском проект нужны выполнить эти команды т.к без них приложение не поймет к каким базам подключиться ес
+export ENV="prod"
+export DATABASE_URL_TEST=postgresql+asyncpg://postgres:mysecretpassword@localhost:5400/twitter_test
+export DATABASE_URL=postgresql+asyncpg://postgres:mysecretpassword@localhost:5400/twitter
 
 Для запуска проекта необходимо выполнить следующие шаги:
 
@@ -61,3 +66,5 @@ uvicorn main:app --reload
 
 
 для развортывание через контейнер ввести команду docker-compose up -d
+
+есть файл lest_datadb.py он генериут фейки для сайта

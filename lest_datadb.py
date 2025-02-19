@@ -1,17 +1,21 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from faker import Faker
 from sqlalchemy.orm import sessionmaker
-from database.models import User, Followers, Following,  get_session, Medias, init_models, engine, Tweets, Likes
+from database.models import User, Followers, Following,  get_session, Medias, init_models, Tweets, Likes
 from sqlalchemy import select, and_
 import random
 import asyncio
 import aiofiles
 from PIL import Image
-from test import get_id
 
-engine = create_async_engine("postgresql+asyncpg://postgres:mysecretpassword@localhost:5400/twitter_test")
+engine = create_async_engine("postgresql+asyncpg://postgres:mysecretpassword@db:5432/twitter")
 AsyncSessionLocal = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
+async def get_id(id, session):
+    query = select(Medias).where(Medias.id.in_(id))
+    result = await session.execute(query)
+    attachments = result.scalars().all()
+    return attachments
 
 
 async def data_test():

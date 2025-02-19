@@ -25,11 +25,15 @@ services:
     # Зависимость от сервиса базы данных
     depends_on:
       - db
+      - db_test
       - sleeper
       
     # Переменная окружения с URL для подключения к базе данных
+    
     environment:
-      - DATABASE_URL=postgresql://postgres:mysecretpassword@db:5400/twitter_test
+      - ENV=prod
+      - DATABASE_URL_TEST=postgresql+asyncpg://postgres:mysecretpassword@db_test:5432/twitter_test
+      - DATABASE_URL=postgresql+asyncpg://postgres:mysecretpassword@db:5432/twitter
 
   # Сервис для базы данных PostgreSQL
   db:
@@ -43,7 +47,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=mysecretpassword
-      - POSTGRES_DB=twitter_test
+      - POSTGRES_DB=twitter
 
     # Отображаем порт 5432 внутри контейнера на порт 5400 на хосте
     ports:
@@ -52,8 +56,31 @@ services:
     # Монтируем том для сохранения данных базы данных
     volumes:
       - pgdata:/var/lib/postgresql/data/
+    
+  db_test:
+    # Используем готовый образ PostgreSQL версии 14
+    image: postgres:14
+      
+      # Настраиваем автоматический рестарт контейнера
+    restart: always
+      
+      # Переменные окружения для настройки базы данных
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mysecretpassword
+      - POSTGRES_DB=twitter_test
+
+      # Отображаем порт 5432 внутри контейнера на порт 5400 на хосте
+    ports:
+      - "5401:5432"
+        
+      # Монтируем том для сохранения данных базы данных
+    volumes:
+      - pgdata_db_test:/var/lib/postgresql/data/
+
 
 # Описание томов
 volumes:
   # Том для хранения данных базы данных
   pgdata:
+  pgdata_db_test:

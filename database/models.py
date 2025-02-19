@@ -5,10 +5,15 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
 
-engine = create_async_engine(os.getenv("DATABASE_URL_TEST"))
 
+if os.getenv("ENV") == "test":
+    database_url = os.getenv("DATABASE_URL_TEST")
+else:
+    database_url = os.getenv("DATABASE_URL")
+
+# Теперь создаем движок
+engine = create_async_engine(database_url)
 Base = declarative_base()
 async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
@@ -17,9 +22,14 @@ async def get_session():
         yield session
         
 async def init_models():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)        
-
+    if os.getenv("ENV") == "test":
+        asyncc_engine = create_async_engine(os.getenv("DATABASE_URL_TEST"))
+        async with asyncc_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)        
+    else:
+        asyncc_engine = create_async_engine(os.getenv("DATABASE_URL"))
+        async with asyncc_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
 class User(Base):
     __tablename__ = 'users'

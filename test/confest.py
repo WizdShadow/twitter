@@ -19,7 +19,8 @@ from func import get_id
 load_dotenv()
 
 
-async_engine = create_async_engine(os.getenv("DATABASE_URL_TEST_SYNC"))
+
+async_engine = create_async_engine(os.getenv("DATABASE_URL_TEST"))
 AsyncSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -31,10 +32,7 @@ def event_loop():
     yield loop
     loop.close() 
 
-@pytest_asyncio.fixture(scope="session")
-async def session():
-    async with AsyncSessionLocal() as session:
-        yield session
+
     
 # Фикстура для клиента
 @pytest_asyncio.fixture(scope="session")
@@ -42,19 +40,22 @@ async def client(event_loop):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
         
-@pytest_asyncio.fixture()
-async def session():
-    async with AsyncSessionLocal() as session:
-        yield session
+@pytest_asyncio.fixture(scope="session")
+async def per_okr():
+    os.environ["ENV"] = "test"
+    yield
+    os.environ["ENV"] = "prod"
 
 # Фикстура для инициализации моделей
 @pytest_asyncio.fixture(scope="session")
 async def init_models():
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    if os.getenv("ENV") == "test":
+        asyncc_engine = create_async_engine(os.getenv("DATABASE_URL_TEST"))
+        async with asyncc_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        yield
+        async with asyncc_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
 
 # Фикстура для тестовых данных
 @pytest_asyncio.fixture(scope="session")
